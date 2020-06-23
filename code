@@ -3,193 +3,191 @@ import numpy as np
 from matplotlib import pyplot as plt 
 import random
 
-# import 'recommendationMovie.csv'
+# read 'recommendationMovie.csv'
 recommendationMovie = pd.read_csv('recommendationMovie.csv', header=None, dtype=np.int32)
 print(recommendationMovie.head())
 print(recommendationMovie.info())
-recommendationMovie = np.array(recommendationMovie)   # convert dataframe into numpy array
+# convert dataframe into numpy arrays 
+recommendationMovie = np.array(recommendationMovie)
 
-#partial-feedbacks 
-
-#epsilon greedy (partial feedbacks)
-# exploration 
-def exploration(movieNum):
-    return np.random.randint(movieNum)
-# exploitation 
-def exploitation(mu):
-    return np.argmax(mu)
-# choose exploration or exploitation 
-def choose_exploration_or_exploitation(epsilon, movieNum, mu):
-    if np.random.random() > epsilon:
-        return exploration(movieNum)
-    else:
-        return exploitation(mu)
-def epsilon_greedy_partial_stochastic(dataframe):
-    #initialization parameters
-    movieNum, day = dataframe.shape  
-    mu = np.zeros(movieNum)
-    times = np.zeros(movieNum)
-    epsilon = 0
-    record = []
-    for i in range(1, day):
-        epsilon = (1 / i)*0.9 + 0.1  
-        arm = choose_exploration_or_exploitation(epsilon, movieNum, mu)
-        times[arm] += 1
-        record.append(dataframe[arm, i])
-        mu[arm] += (dataframe[arm, i] - mu[arm]) / times[arm]  
-    best_arm = np.argmax(np.sum(dataframe, axis=1))  
-    best = 0 
-    success = 0
-    loss = np.zeros(movieNum)
-    regret = []    
-    algorithm_loss_cum = 0
-    optimal_loss = np.zeros(day-1)
-    algorithm_loss = np.zeros(day-1)
-    for i in range(len(record)):
-        success += record[i]
-        best += dataframe[best_arm, i]
-        loss += np.ones(movieNum) - dataframe[:,i].T
-        optimal_arm = np.argmin(loss)
-        optimal_loss[i] = loss[optimal_arm]
-        regret.append((best-success)/(i+1))
-        algorithm_loss_cum += 1 - record[i]
-        algorithm_loss[i] = algorithm_loss_cum
-    return regret, optimal_loss, algorithm_loss
-    
-    #Multiplicative weight updatas Non-stochastic case(partial feedbacks)
-def multiplicative_weight_updatas_partial_stochastic(dataframe):
-    reg = []
-    movieNum, day = dataframe.shape
-    w = np.ones(movieNum)
-    eta = 1/np.sqrt(day)
-    sumTrueLoss = np.zeros(movieNum)
-    reward = 0
-    trueLoss = np.zeros(movieNum)
-    sumAllLoss = 0
-    algorithm_loss = np.zeros(day)
-    for i in range(day):
-        Loss = np.zeros(movieNum)
-        arm = np.random.choice(movieNum, p=w/np.sum(w))
-        reward += dataframe[arm, i]
-        Loss[arm] = 1 - dataframe[arm, i]
-        trueLoss = 1- dataframe[:, i]
-        sumTrueLoss += trueLoss                      #loss of the algorithm
-        w = w*(1 - eta*Loss.T)                    #update weight 
-        sumAllLoss += Loss[arm]                      #total loss of all arms 
-        algorithm_loss[i] = sumAllLoss
-        loss_L = sumAllLoss - np.min(sumTrueLoss)      #difference between algorithm and the arm with minimum loss
-        reg.append(loss_L/(i+1))
+# partial-feedbacks algorithms 
+class algorithmsPartialFeedback:
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+        self.movieNum, self.day = dataframe.shape
         
-    return reg, algorithm_loss
+    # epsilon greedy
+    def epsilon_greedy_partial_stochastic(self): 
+        #initialization parameters 
+        mu = np.zeros(self.movieNum)
+        times = np.zeros(self.movieNum)
+        epsilon = 0
+        record = []
+        for i in range(1, self.day):
+            epsilon = (1 / i)*0.9 + 0.1  
+            arm = choose_exploration_or_exploitation(epsilon, self.movieNum, mu)
+            times[arm] += 1
+            record.append(self.dataframe[arm, i])
+            mu[arm] += (self.dataframe[arm, i] - mu[arm]) / times[arm]  
+        best_arm = np.argmax(np.sum(self.dataframe, axis=1))  
+        best = 0 
+        success = 0
+        loss = np.zeros(self.movieNum)
+        regret = []    
+        algorithm_loss_cum = 0
+        optimal_loss = np.zeros(self.day-1)
+        algorithm_loss = np.zeros(self.day-1)
+        for i in range(len(record)):
+            success += record[i]
+            best += self.dataframe[best_arm, i]
+            loss += np.ones(self.movieNum) - self.dataframe[:,i].T
+            optimal_arm = np.argmin(loss)
+            optimal_loss[i] = loss[optimal_arm]
+            regret.append((best-success)/(i+1))
+            algorithm_loss_cum += 1 - record[i]
+            algorithm_loss[i] = algorithm_loss_cum
+        return regret, optimal_loss, algorithm_loss
+    
+    # exploration 
+    def exploration(self):
+        return np.random.randint(self.movieNum)
+    # exploitation 
+    def exploitation(self):
+        return np.argmax(self.mu)
+    # choose exploration or exploitation 
+    def choose_exploration_or_exploitation(self, epsilon, mu):
+        if np.random.random() > epsilon:
+            return exploration(self.movieNum)
+        else:
+            return exploitation(mu)
+        
+    #Multiplicative weight updatas Non-stochastic case(partial feedbacks)
+    def multiplicative_weight_updatas_partial_stochastic(self):
+        reg = []
+        w = np.ones(self.movieNum)
+        eta = 1/np.sqrt(self.day)
+        sumTrueLoss = np.zeros(self.movieNum)
+        reward = 0
+        trueLoss = np.zeros(self.movieNum)
+        sumAllLoss = 0
+        algorithm_loss = np.zeros(self.day)
+        for i in range(self.day):
+            Loss = np.zeros(self.movieNum)
+            arm = np.random.choice(self.movieNum, p=w/np.sum(w))
+            reward += self.dataframe[arm, i]
+            Loss[arm] = 1 - self.dataframe[arm, i]
+            trueLoss = 1- self.dataframe[:, i]
+            sumTrueLoss += trueLoss                      #loss of the algorithm
+            w = w*(1 - eta*Loss.T)                    #update weight 
+            sumAllLoss += Loss[arm]                      #total loss of all arms 
+            algorithm_loss[i] = sumAllLoss
+            loss_L = sumAllLoss - np.min(sumTrueLoss)      #difference between algorithm and the arm with minimum loss
+            reg.append(loss_L/(i+1))
+        return reg, algorithm_loss
+    
     
     #UCB1 Stochastic Partial Feedback
-#go over all arms once first 
-def goOverAllArms(dataframe):
-    movieNum, day = dataframe.shape
-    record = np.zeros(day)
-    allArmsSequence = random.sample(range(movieNum), movieNum)
-    times = np.zeros(movieNum)
-    reward = np.zeros(movieNum)
-    mu = np.zeros(movieNum)
-    for i in range(movieNum):
-        arm = allArmsSequence[i]
-        reward[arm] += dataframe[arm, i]
-        times[arm] += 1
-        mu[arm] = reward[arm] / 1  
-        record[i] = dataframe[arm, i]
-        #print(mu[arm])
-    return reward, times, mu, record
-def ucb(mean, n, nj):
-    return mean + np.sqrt(2*np.log(n) / nj)
-def ucb1_partial_stochastic(dataframe):
-    movieNum, day = dataframe.shape
-    reward, times, mu, record = goOverAllArms(dataframe)
-    ucbValue = np.zeros(movieNum)
-    for i in range(movieNum+1,day):
-        for j in range(movieNum):
-            ucbValue[j] = ucb(mu[j], i, times[j])
-        maxValue = max(ucbValue)
-        arm = random.sample([m for m, n in enumerate(ucbValue) if n == maxValue], 1)         
-        times[arm] += 1
-        mu[arm] = mu[arm] + (dataframe[arm, i] - mu[arm])/times[arm]
-        record[i] = dataframe[arm, i]
-    best_arm = np.argmax(np.sum(dataframe, axis=1))
-    #print(best_arm)
-    best = 0 
-    success = 0
-    loss = 0
-    regret = []    
-    algorithm_loss = np.zeros(day)
-    for i in range(len(record)):
-        success += record[i]
-        loss += (1- record[i])
-        algorithm_loss[i] = loss
-        best += dataframe[best_arm, i]
-        regret.append((best-success)/(i+1))
-    return regret, algorithm_loss
+    #go over all arms once first 
+    def goOverAllArms(self):
+        record = np.zeros(self.day)
+        allArmsSequence = random.sample(range(self.movieNum), self.movieNum)
+        times = np.zeros(self.movieNum)
+        reward = np.zeros(self.movieNum)
+        mu = np.zeros(self.movieNum)
+        for i in range(self.movieNum):
+            arm = allArmsSequence[i]
+            reward[arm] += self.dataframe[arm, i]
+            times[arm] += 1
+            mu[arm] = reward[arm] / 1  
+            record[i] = self.dataframe[arm, i]
+        return reward, times, mu, record
+    def ucb(mean, n, nj):
+        return mean + np.sqrt(2*np.log(n) / nj)
+    def ucb1_partial_stochastic(self):
+        reward, times, mu, record = goOverAllArms(self.dataframe)
+        ucbValue = np.zeros(self.movieNum)
+        for i in range(self.movieNum+1,self.day):
+            for j in range(self.movieNum):
+                ucbValue[j] = ucb(mu[j], i, times[j])
+            maxValue = max(ucbValue)
+            arm = random.sample([m for m, n in enumerate(ucbValue) if n == maxValue], 1)         
+            times[arm] += 1
+            mu[arm] = mu[arm] + (self.dataframe[arm, i] - mu[arm])/times[arm]
+            record[i] = self.dataframe[arm, i]
+        best_arm = np.argmax(np.sum(self.dataframe, axis=1))
+        best = 0 
+        success = 0
+        loss = 0
+        regret = []    
+        algorithm_loss = np.zeros(self.day)
+        for i in range(len(record)):
+            success += record[i]
+            loss += (1- record[i])
+            algorithm_loss[i] = loss
+            best += self.dataframe[best_arm, i]
+            regret.append((best-success)/(i+1))
+        return regret, algorithm_loss
     
     #EXP3 Non-stochastic case partial feedback 
-def exp3_partial_non_stochastic(dataframe):
-    row, column = dataframe.shape 
-    prob = np.ones(row)/row         # Initialize unifor distribution 
-    estimated_sum_loss = np.zeros(row)
-    reward = np.zeros(column)
-    best_arm = np.argmax(np.sum(dataframe, axis=1))
-    algorithm_loss = np.zeros(column)
-    for t in range(column):
-        eta = (np.log(row)/((t+1)*row))**0.5      # learning rate
-        #i = draw(prob)
-        i = np.random.choice(row, p=prob)
-        loss = 1 - dataframe[i,t]
-        reward[t] = dataframe[i,t]
-        estimated_sum_loss[i] += loss/prob[i]         # unbiased estimator of loss
-        weight = [np.exp(-eta*estimated_sum_loss[j]) for j in range(row)]
-        prob = weight/sum(weight)
-    success = 0
-    regret = []
-    best = 0
-    loss = 0
-    #algorithm_loss = np.zeros(column)
-    for i in range(column):
-        success += reward[i]
-        loss += (1- reward[i])
-        algorithm_loss[i] = loss
-        best += dataframe[best_arm, i]
-        regret.append((best-success)/(i+1))
-    return regret, algorithm_loss
-    
-    def Thompson_partial(dataframe):
-    num_ads,T=dataframe.shape
-    best_arm = np.argmax(np.sum(dataframe, axis=1))
-    s = np.zeros(shape=num_ads)
-    f = np.zeros(shape=num_ads)
-    reward = np.zeros(shape=T)
-    reg = []
-    success = 0
-    best = 0
-    algorithm_loss = np.zeros(T)
-    loss = 0
-    for t in range(T):
-        i = np.argmax([np.random.beta(s[i]+1,f[i]+1) for i in range(num_ads)])   # beta distribution
-        reward[t] = dataframe[i,t]
-        if dataframe[i,t] == 1:
-            s[i]+=1
-        else:
-            f[i]+=1
-    for i in range(T):
-        success += reward[i]
-        loss += (1 - reward[i])
-        algorithm_loss[i] = loss 
-        best += dataframe[best_arm, i]
-        reg.append((best-success)/(i+1))
-    return reg, algorithm_loss
+    def exp3_partial_non_stochastic(self):
 
-# plot regret curves
-reg1, optimal_loss, algorithm_loss_epsilon = epsilon_greedy_partial_stochastic(recommendationMovie)
-reg2, algorithm_loss_MWU = multiplicative_weight_updatas_partial_stochastic(recommendationMovie)
-reg3, algorithm_loss_ucb1 = ucb1_partial_stochastic(recommendationMovie)
-reg4, algorithm_loss_exp3 = exp3_partial_non_stochastic(recommendationMovie)
-reg5, algorithm_loss_thompson = Thompson_partial(recommendationMovie)
+        prob = np.ones(self.movieNum)/self.movieNum         # Initialize unifor distribution 
+        estimated_sum_loss = np.zeros(self.movieNum)
+        reward = np.zeros(self.day)
+        best_arm = np.argmax(np.sum(self.dataframe, axis=1))
+        algorithm_loss = np.zeros(self.day)
+        for t in range(self.day):
+            eta = (np.log(self.movieNum)/((t+1)*self.movieNum))**0.5      # learning rate
+            i = np.random.choice(self.movieNum, p=prob)
+            loss = 1 - self.dataframe[i,t]
+            reward[t] = self.dataframe[i,t]
+            estimated_sum_loss[i] += loss/prob[i]         # unbiased estimator of loss
+            weight = [np.exp(-eta*estimated_sum_loss[j]) for j in range(self.movieNum)]
+            prob = weight/sum(weight)
+        success = 0
+        regret = []
+        best = 0
+        loss = 0
+        for i in range(self.day):
+            success += reward[i]
+            loss += (1- reward[i])
+            algorithm_loss[i] = loss
+            best += self.dataframe[best_arm, i]
+            regret.append((best-success)/(i+1))
+        return regret, algorithm_loss
+    
+    # Thompson
+    def Thompson_partial(self):
+        #num_ads,T=dataframe.shape
+        best_arm = np.argmax(np.sum(self.dataframe, axis=1))
+        s = np.zeros(shape=self.movieNum)
+        f = np.zeros(shape=self.movieNum)
+        reward = np.zeros(shape=self.day)
+        reg = []
+        success = 0
+        best = 0
+        algorithm_loss = np.zeros(self.day)
+        loss = 0
+        for t in range(self.day):
+            i = np.argmax([np.random.beta(s[i]+1,f[i]+1) for i in range(self.movieNum)])   # beta distribution
+            reward[t] = self.dataframe[i,t]
+            if self.dataframe[i,t] == 1:
+                s[i]+=1
+            else:
+                f[i]+=1
+        for i in range(self.day):
+            success += reward[i]
+            loss += (1 - reward[i])
+            algorithm_loss[i] = loss 
+            best += self.dataframe[best_arm, i]
+            reg.append((best-success)/(i+1))
+        return reg, algorithm_loss
+ 
+reg1, optimal_loss, algorithm_loss = algorithmsPartialFeedback(recommendationMovie).epsilon_greedy_partial_stochastic()
+reg2, algorithm_loss_epsilon = algorithmsPartialFeedback(recommendationMovie).multiplicative_weight_updatas_partial_stochastic()
+reg3, algorithm_loss_ucb1 = algorithmsPartialFeedback(recommendationMovie).ucb1_partial_stochastic()
+reg4, algorithm_loss_exp3 = algorithmsPartialFeedback(recommendationMovie).exp3_partial_non_stochastic()
+reg5, algorithm_loss_thompson = algorithmsPartialFeedback(recommendationMovie).Thompson_partial()
 plt.plot(list(range(len(reg1))), reg1,label='Epsilon Greedy')
 plt.plot(list(range(len(reg2))), reg2,label='Multiplicative Weight Updatas')
 plt.plot(list(range(len(reg3))), reg3,label='UCB1')
@@ -199,6 +197,7 @@ plt.title('Partial Feedback')
 plt.ylabel('Regret')
 plt.legend()
 plt.show()
+
 plt.plot(list(range(len(optimal_loss))), optimal_loss,label='Optimal Loss')
 plt.plot(list(range(len(algorithm_loss_MWU))), algorithm_loss_MWU,label='Multiplicative weight updatas Algorithm Loss')
 plt.plot(list(range(len(algorithm_loss_epsilon))), algorithm_loss_epsilon,label='Epsilon Greedy Algorithm Loss')
@@ -211,96 +210,96 @@ plt.ylim(0,23000)
 plt.legend()
 plt.show()
 
-# Full-feedbacks 
-#Multiplicative weight updatas stochastic case(full feedbacks)
-def multiplicative_weight_updatas_full_non_stochastic(dataframe):
-    reg = []
-    movieNum, day = dataframe.shape
-    w = np.ones(movieNum)
-    eta = 1/np.sqrt(day)
-    sumAllLoss = np.zeros(movieNum)
-    reward = 0
-    sumLoss = 0
-    times = np.zeros(day)
-    fullProbability = np.zeros((day,movieNum))
-    algorithm_loss = np.zeros(day)
-    loss_algorithm = 0
-    for i in range(day):
-        arm = np.random.choice(movieNum, p=w/np.sum(w))
-        fullProbability[i,:] = w/np.sum(w)
-        times[arm] += 1
-        reward += dataframe[arm, i]
-        loss_algorithm += (1 - dataframe[arm, i])
-        algorithm_loss[i] = loss_algorithm
-        Loss = 1 - dataframe[:, i]
-        sumLoss += Loss[arm]                      #loss of the algorithm
-        w = w*(1 - eta*Loss.T)                    #update weight 
-        sumAllLoss += Loss.T                      #total loss of all arms 
-        loss_L = sumLoss - np.min(sumAllLoss)      #difference between algorithm and the arm with minimum loss
-        reg.append(loss_L/(i+1))
-    return reg,times, fullProbability, algorithm_loss
 
-#Thompson stochastic (Full feedback)
-def Thompson_full(dataframe):
-    num_ads,T=dataframe.shape
-    best_arm = np.argmax(np.sum(dataframe, axis=1))
-    s = np.zeros(shape=num_ads)
-    f = np.zeros(shape=num_ads)
-    reward = np.zeros(shape=T)
-    algorithm_loss = np.zeros(T)
-    loss = 0
-    reg = []
-    success = 0
-    best = 0
-    for t in range(T):
-        i = np.argmax([np.random.beta(s[i]+1,f[i]+1) for i in range(num_ads)])   # beta distribution
-        reward[t] = dataframe[i,t]
-        for j in range(num_ads):
-            if dataframe[j,t] == 1:
-                s[j]+=1
-            else:
-                f[j]+=1
-    for i in range(T):
-        success += reward[i]
-        loss += (1 - reward[i])
-        algorithm_loss[i] = loss
-        best += dataframe[best_arm, i]
-        reg.append((best-success)/(i+1))
-    return reg, algorithm_loss
+# full-feedbacks algorithms 
+class algorithmsFullFeedback:
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+        self.movieNum, self.day = dataframe.shape
 
-
-#UCB1 Stochastic Full Feedback
-def ucb1_partial_non_stochastic(dataframe):
-    movieNum, day = dataframe.shape
-    reward, times, mu, record = goOverAllArms(dataframe)
-    ucbValue = np.zeros(movieNum)
-    algorithm_loss = np.zeros(day)
-    loss = 0
-    for i in range(movieNum+1,day):
-        for j in range(movieNum):
-            ucbValue[j] = ucb(mu[j], i, times[j])
-        maxValue = max(ucbValue)
-        arm = random.sample([m for m, n in enumerate(ucbValue) if n == maxValue], 1)         
-        mu = mu + (dataframe[:, i].T - mu)/i
-        record[i] = dataframe[arm, i]
-    best_arm = np.argmax(np.sum(dataframe, axis=1))
-    best = 0 
-    success = 0
-    regret = []    
-    for i in range(day):
-        success += record[i]
-        loss += (1 - record[i])
-        algorithm_loss[i] = loss
-        best += dataframe[best_arm, i]
-        regret.append((best-success)/(i+1))
-    return regret, algorithm_loss
+    #Multiplicative weight updatas stochastic case(full feedbacks)
+    def multiplicative_weight_updatas_full_non_stochastic(self):
+        reg = []
+        w = np.ones(self.movieNum)
+        eta = 1/np.sqrt(self.day)
+        sumAllLoss = np.zeros(self.movieNum)
+        reward = 0
+        sumLoss = 0
+        times = np.zeros(self.day)
+        fullProbability = np.zeros((self.day,self.movieNum))
+        algorithm_loss = np.zeros(self.day)
+        loss_algorithm = 0
+        for i in range(self.day):
+            arm = np.random.choice(self.movieNum, p=w/np.sum(w))
+            fullProbability[i,:] = w/np.sum(w)
+            times[arm] += 1
+            reward += self.dataframe[arm, i]
+            loss_algorithm += (1 - self.dataframe[arm, i])
+            algorithm_loss[i] = loss_algorithm
+            Loss = 1 - self.dataframe[:, i]
+            sumLoss += Loss[arm]                      #loss of the algorithm
+            w = w*(1 - eta*Loss.T)                    #update weight 
+            sumAllLoss += Loss.T                      #total loss of all arms 
+            loss_L = sumLoss - np.min(sumAllLoss)      #difference between algorithm and the arm with minimum loss
+            reg.append(loss_L/(i+1))
+        return reg,times, fullProbability, algorithm_loss
     
-reg6, times, fullProbability, algorithm_loss_mwu = multiplicative_weight_updatas_full_non_stochastic(recommendationMovie)
-reg7, algorithm_loss_ucb1 = ucb1_partial_non_stochastic(recommendationMovie)
-reg8, algorithm_loss_thompson = Thompson_full(recommendationMovie)
-reg6[-1]
-reg7[-1]
-reg8[-1]
+    #UCB1 Stochastic Full Feedback
+    def ucb1_partial_non_stochastic(self):
+        reward, times, mu, record = goOverAllArms(self.dataframe)
+        ucbValue = np.zeros(self.movieNum)
+        algorithm_loss = np.zeros(self.day)
+        loss = 0
+        for i in range(self.movieNum+1,self.day):
+            for j in range(self.movieNum):
+                ucbValue[j] = ucb(mu[j], i, times[j])
+            maxValue = max(ucbValue)
+            arm = random.sample([m for m, n in enumerate(ucbValue) if n == maxValue], 1)         
+            mu = mu + (self.dataframe[:, i].T - mu)/i
+            record[i] = self.dataframe[arm, i]
+        best_arm = np.argmax(np.sum(self.dataframe, axis=1))
+        best = 0 
+        success = 0
+        regret = []    
+        for i in range(self.day):
+            success += record[i]
+            loss += (1 - record[i])
+            algorithm_loss[i] = loss
+            best += self.dataframe[best_arm, i]
+            regret.append((best-success)/(i+1))
+        return regret, algorithm_loss
+    
+    #Thompson stochastic (Full feedback)
+    def Thompson_full(self):
+        #num_ads,T=dataframe.shape
+        best_arm = np.argmax(np.sum(self.dataframe, axis=1))
+        s = np.zeros(shape=self.movieNum)
+        f = np.zeros(shape=self.movieNum)
+        reward = np.zeros(shape=self.day)
+        algorithm_loss = np.zeros(self.day)
+        loss = 0
+        reg = []
+        success = 0
+        best = 0
+        for t in range(self.day):
+            i = np.argmax([np.random.beta(s[i]+1,f[i]+1) for i in range(self.movieNum)])   # beta distribution
+            reward[t] = self.dataframe[i,t]
+            for j in range(self.movieNum):
+                if self.dataframe[j,t] == 1:
+                    s[j]+=1
+                else:
+                    f[j]+=1
+        for i in range(self.day):
+            success += reward[i]
+            loss += (1 - reward[i])
+            algorithm_loss[i] = loss
+            best += self.dataframe[best_arm, i]
+            reg.append((best-success)/(i+1))
+        return reg, algorithm_loss
+   
+reg6, times, fullProbability, algorithm_loss_mwu = algorithmsFullFeedback(recommendationMovie).multiplicative_weight_updatas_full_non_stochastic()
+reg7, algorithm_loss_ucb1 = algorithmsFullFeedback(recommendationMovie).ucb1_partial_non_stochastic()
+reg8, algorithm_loss_thompson = algorithmsFullFeedback(recommendationMovie).Thompson_full()
 plt.plot(list(range(len(reg6))), reg6,label='Multiplicative Weight Updatas')
 plt.plot(list(range(len(reg7))), reg7,label='UCB1')
 plt.plot(list(range(len(reg8))), reg8,label='Thompson_full')
@@ -308,6 +307,7 @@ plt.title('Full Feedback')
 plt.ylabel('Regret')
 plt.legend()
 plt.show()
+
 plt.plot(list(range(len(optimal_loss))), optimal_loss,label='Optimal Loss')
 plt.plot(list(range(len(algorithm_loss_mwu))), algorithm_loss_mwu,label='MWU Algorithm Loss Full Feedback')
 plt.plot(list(range(len(algorithm_loss_ucb1))), algorithm_loss_ucb1,label='UCB1 Algorithm Loss Full Feedback')
@@ -319,7 +319,7 @@ plt.legend()
 plt.show()
 
 
-#pick top 10 rating movies by the best algorithm 
+# recommend top-10 movies 
 #Multiplicative weight updatas Non-stochastic case(full feedbacks)
 movieProbability = np.sum(fullProbability, axis=0)
 sortedTimes = np.sort(times)
@@ -341,6 +341,3 @@ plt.legend()
 plt.ylabel('Regret')
 plt.title('MovieRecommendation')
 plt.show()
-
-
-    
