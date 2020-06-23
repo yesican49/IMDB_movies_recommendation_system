@@ -1,9 +1,4 @@
 ```ruby
-require 'redcarpet'
-markdown = Redcarpet.new("Hello World!")
-puts markdown.to_html
-```
-
 import pandas as pd 
 import numpy as np
 from matplotlib import pyplot as plt 
@@ -347,3 +342,5 @@ plt.legend()
 plt.ylabel('Regret')
 plt.title('MovieRecommendation')
 plt.show()
+
+```
