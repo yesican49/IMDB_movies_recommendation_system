@@ -9,7 +9,7 @@ print(recommendationMovie.head())
 print(recommendationMovie.info())
 recommendationMovie = np.array(recommendationMovie)   # convert dataframe into numpy array
 
-#stochastic
+#partial-feedbacks 
 
 #epsilon greedy (partial feedbacks)
 # exploration 
